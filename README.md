@@ -52,7 +52,7 @@ ollama serve
 
 ### Step 3: Start n8n with Docker
 
-Create `docker-compose.yml`:
+Use or create `docker-compose.yml`:
 
 ```yaml
 services:
@@ -68,8 +68,6 @@ services:
       - NODE_FUNCTION_ALLOW_EXTERNAL=*
     volumes:
       - n8n_data:/home/node/.n8n
-volumes:
-  n8n_data:
 ```
 
 ```

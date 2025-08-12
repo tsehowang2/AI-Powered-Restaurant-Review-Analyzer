@@ -1,0 +1,362 @@
+{
+  "name": "Restaurant-Review-Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "AI-Powered Restaurant Review Analyzer - Send multiple comments separated by newlines!",
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "544a7a6b-9d4b-491d-b785-22ad340eb65f",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1,
+      "position": [-1312, -32],
+      "webhookId": "38606ef0-bfbe-4961-9148-93616a779e04"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.processedComment }}",
+        "options": {
+          "systemMessage": "You will receive a comment that needs translation. \nTranslate it to English and respond with ONLY the English version.\nDo not include explanations or additional text."
+        }
+      },
+      "id": "13e63645-9b93-4cf6-8ba7-7a82635c420f",
+      "name": "Translator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [-832, -336]
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "options": {
+          "temperature": 0.1,
+          "topK": 5,
+          "topP": 0.2,
+          "numPredict": 300
+        }
+      },
+      "id": "f10328a2-5123-4ea1-bec3-b3e24d1c8a38",
+      "name": "Translation Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [-816, -176],
+      "credentials": {
+        "ollamaApi": {
+          "id": "qKsoz5wwTl7VpQfY",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "options": {
+          "temperature": 0.1,
+          "topK": 5,
+          "topP": 0.2,
+          "numPredict": 30,
+          "repeatPenalty": 1.1
+        }
+      },
+      "id": "6ba7b4c2-1386-477a-8a05-ea1be39f33b4",
+      "name": "Rating Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [144, 128],
+      "credentials": {
+        "ollamaApi": {
+          "id": "qKsoz5wwTl7VpQfY",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst totalComments = allItems.length;\n\nconst combinedResponse = allItems\n  .map(item => item.json.response)\n  .join('\\n\\n');\n\nconst finalResponse = `📊 **Restaurant Rating (${totalComments} comments)**\\n\\n${combinedResponse}`;\n\nreturn [{ json: { output: finalResponse } }];"
+      },
+      "id": "f427c930-cb41-405c-ad7d-b9da570e7522",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [608, -32]
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const allItems = $input.all();\n  \n  return allItems.map((item, index) => {\n    const currentItem = item.json;\n    const ratingData = currentItem.output || '';\n    const commentIndex = index + 1;\n    const ratingOutput = ratingData || 'Food:N Service:N Environment:N Value:N Overall:N';\n    \n    const foodMatch = ratingOutput.match(/Food:\\s*([N\\d]+)/i);\n    const serviceMatch = ratingOutput.match(/Service:\\s*([N\\d]+)/i);\n    const environmentMatch = ratingOutput.match(/Environment:\\s*([N\\d]+)/i);\n    const valueMatch = ratingOutput.match(/Value:\\s*([N\\d]+)/i);\n    const overallMatch = ratingOutput.match(/Overall:\\s*([N\\d]+)/i);\n    \n    const parseScore = (match) => {\n      if (!match || match[1] === 'N') return 'N/A';\n      const score = parseInt(match[1]);\n      return (score >= 1 && score <= 10) ? `${score}/10` : 'N/A';\n    };\n    \n    const food = parseScore(foodMatch);\n    const service = parseScore(serviceMatch);\n    const environment = parseScore(environmentMatch);\n    const value = parseScore(valueMatch);\n    const overall = parseScore(overallMatch);\n    const response = `**Comment ${commentIndex}:**\\nFood: ${food} | Service: ${service} | Environment: ${environment} | Value: ${value} | Overall: ${overall}`;\n    \n    return {\n      json: {\n        response: response,\n        commentIndex: commentIndex,\n        scores: {\n          food: foodMatch && foodMatch[1] !== 'N' ? parseInt(foodMatch[1]) : null,\n          service: serviceMatch && serviceMatch[1] !== 'N' ? parseInt(serviceMatch[1]) : null,\n          environment: environmentMatch && environmentMatch[1] !== 'N' ? parseInt(environmentMatch[1]) : null,\n          value: valueMatch && valueMatch[1] !== 'N' ? parseInt(valueMatch[1]) : null,\n          overall: overallMatch && overallMatch[1] !== 'N' ? parseInt(overallMatch[1]) : null\n        }\n      }\n    };\n  });\n\n} catch (error) {\n  return [{ \n    json: {\n      response: `**Error processing comments:** ${error.message}`,\n      commentIndex: 1,\n      scores: { food: null, service: null, environment: null, value: null, overall: null }\n    }\n  }];\n}"
+      },
+      "id": "bbf1b942-3681-4c31-8a02-b8481e575a8d",
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [448, -32]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [-176, -32],
+      "id": "4b486f95-1745-4f38-ba8f-ebc466b645ac",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle ALL items from merge and SORT by commentIndex\nconst allItems = $input.all();\n\nconst processedItems = allItems.map((item, index) => {\n  const inputData = item.json;\n  \n  let translatedText, originalComment, commentIndex, needsTranslation;\n  \n  if (inputData.output && !inputData.originalComment) {\n    // This is from translator (translated text only)\n    translatedText = inputData.output;\n    originalComment = '';\n    commentIndex = index + 1; // Generate index\n    needsTranslation = true;\n  } else {\n    // This is from direct path (English comments)\n    translatedText = inputData.processedComment || inputData.originalComment || '';\n    originalComment = inputData.originalComment || '';\n    commentIndex = inputData.commentIndex || (index + 1);\n    needsTranslation = inputData.needsTranslation || false;\n  }\n  \n  return {\n    json: {\n      output: translatedText,\n      originalComment: originalComment,\n      commentIndex: commentIndex,\n      needsTranslation: needsTranslation\n    }\n  };\n});\n\n// SORT by commentIndex to ensure correct order (1, 2, 3, 4)\nprocessedItems.sort((a, b) => (a.json.commentIndex || 0) - (b.json.commentIndex || 0));\n\nreturn processedItems;"
+      },
+      "id": "43ac04d6-1c02-441b-a07b-dab24f17087f",
+      "name": "Sort by Index",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-16, -32]
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatInput = $input.first().json;\nconst userInput = chatInput.chatInput || chatInput.input || '';\n\nconst comments = userInput.split('\\n')\n  .map(c => c.trim())\n  .filter(c => c.length > 0);\n\nreturn comments.map((comment, index) => {\n  const isEnglish = /^[a-zA-Z\\s.,!?'\"()-:;]+$/.test(comment.substring(0, 100));\n  \n  return {\n    json: {\n      originalComment: comment,\n      commentIndex: index + 1,\n      totalComments: comments.length,\n      needsTranslation: !isEnglish,\n      processedComment: comment\n    }\n  };\n});"
+      },
+      "id": "1b56ccca-57e0-4569-901c-6d5cb802fc0a",
+      "name": "Split Comments By Newline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1120, -32]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.needsTranslation }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "deefe9a2-9484-4f42-b63a-343341ef9f21",
+      "name": "Needs Translation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-960, -32]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n    json: {\n      processedComment: $input.first().json.output\n    }\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-576, -336],
+      "id": "597951db-4cd0-4bdc-8858-5bd7b5f109f7",
+      "name": "Rename Output as processedComment"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "needTranslation",
+        "joinMode": "keepEverything",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [-464, -160],
+      "id": "4e204047-b6a3-4c30-83f5-448e0a441bd7",
+      "name": "Merge Before/After"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process merged data from Merge node\nconst allItems = $input.all();\n\n// Separate the data types\nconst input1Items = []; // From \"Needs Translation?\" \nconst input2Items = []; // From \"Translator\"\n\n// Sort items by their source structure\nallItems.forEach(item => {\n  const data = item.json;\n  \n  // Check if this item has full metadata (from input1) or just translation (from input2)\n  if (data.originalComment !== undefined && data.commentIndex !== undefined) {\n    // This is from \"Needs Translation?\" node\n    input1Items.push(data);\n  } else if (data.output !== undefined || data.processedComment !== undefined) {\n    // This is from \"Translator\" node  \n    input2Items.push(data);\n  }\n});\n\n// Sort both arrays by position to ensure proper matching\ninput1Items.sort((a, b) => (a.commentIndex || 0) - (b.commentIndex || 0));\n\n// Perform the join operation\nconst joinedResults = input1Items.map((input1Data, index) => {\n  const input2Data = input2Items[index] || {};\n  \n  return {\n    json: {\n      originalComment: input1Data.originalComment,\n      commentIndex: input1Data.commentIndex,\n      totalComments: input1Data.totalComments,\n      needsTranslation: input1Data.needsTranslation,\n      processedComment: input2Data.processedComment || input2Data.output || input1Data.processedComment\n    }\n  };\n});\n\nreturn joinedResults;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-320, -160],
+      "id": "70910213-bf59-4992-a033-9abbc4ec0c91",
+      "name": "Update English Comment"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.output }}",
+        "options": {
+          "systemMessage": "Rate restaurant comments. Respond ONLY in this exact format:\nFood:X Service:X Environment:X Value:X Overall:X\n\nCRITICAL SCORING RULES (AUTOMATIC 1 POINT):\n- Food poisoning/illness/sickness = Food:1, Overall:1\n- Food safety issues = Food:1, Service:1\n- \"Terrible experience\" = Overall:1-2 maximum\n\nSEVERE ISSUES (1-2 POINTS):\n- Disappointing loyal customers = 1-2 points maximum\n- Multiple service failures = 1-2 points for service\n- Manager rejecting reasonable requests = major service failure\n- Unfriendly staff = service deduction\n- Wrong table/seating issues = service failure\n\nSCORING SCALE:\n- Positive: 8-10 (good=8, excellent=9-10)\n- Negative: 1-3 (bad=1-2, terrible=1)\n- Neutral: 4-7 (okay=5, decent=6-7)\n- Not mentioned: N\n\nFood poisoning is the worst possible restaurant experience = all scores 1/10.\n"
+        }
+      },
+      "id": "ed47ee3c-e101-4140-9000-7ecc92680217",
+      "name": "Comment Rater",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [144, -32]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Split Comments By Newline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translator": {
+      "main": [
+        [
+          {
+            "node": "Rename Output as processedComment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translation Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Translator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rating Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Comment Rater",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Results": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Sort by Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort by Index": {
+      "main": [
+        [
+          {
+            "node": "Comment Rater",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Comments By Newline": {
+      "main": [
+        [
+          {
+            "node": "Needs Translation?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Translation?": {
+      "main": [
+        [
+          {
+            "node": "Translator",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Before/After",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Rename Output as processedComment": {
+      "main": [
+        [
+          {
+            "node": "Merge Before/After",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Before/After": {
+      "main": [
+        [
+          {
+            "node": "Update English Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update English Comment": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comment Rater": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -158,7 +158,7 @@ Comment 4: Food: N/A | Service: N/A | Environment: 9/10 | Value: 8/10 | Overall:
 
 ## ⚙️ Technical Architecture
 
-### Language Detection \& Translation Flow
+### WorkFlow diagram
 
 ```mermaid
 graph LR

@@ -55,6 +55,7 @@ ollama serve
 Use or create `docker-compose.yml`:
 
 ```yaml
+# docker-compose.yml
 services:
   n8n:
     image: n8nio/n8n
@@ -68,6 +69,8 @@ services:
       - NODE_FUNCTION_ALLOW_EXTERNAL=*
     volumes:
       - n8n_data:/home/node/.n8n
+volumes:
+  n8n_data:
 ```
 
 ```
@@ -78,7 +81,7 @@ docker-compose up -d
 ### Step 4: Access n8n Interface
 
 1. Open browser and go to `http://localhost:5678`
-2. Create a local n8n account
+2. Create a local n8n account `demo1234@example.com` `Demo` `1234` `Demo1234`
 3. Complete the initial setup
 
 ### Step 5: Configure Ollama Connection

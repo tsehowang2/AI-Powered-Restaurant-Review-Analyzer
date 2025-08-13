@@ -81,8 +81,12 @@ docker-compose up -d
 ### Step 4: Access n8n Interface
 
 1. Open browser and go to `http://localhost:5678`
-2. Create a local n8n account `demo1234@example.com` `Demo` `1234` `Demo1234`
-3. Complete the initial setup
+2. Create a local n8n account
+   - Email: `demo1234@example.com`
+   - First Name: `Demo`
+   - Last Name: `1234`
+   -  Password: `Demo1234`
+4. Complete the initial setup
 
 ### Step 5: Configure Ollama Connection
 
